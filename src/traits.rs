@@ -7,7 +7,8 @@
 //! as a weak element, you need to implement `WeakElement` for your weak pointer type; to use it
 //! as a weak key, implement `WeakKey` as well.
 
-use crate::compat::*;
+use std::hash::Hash;
+use std::{rc, sync};
 
 /// Interface for elements that can be stored in weak hash tables.
 ///
@@ -69,19 +70,6 @@ pub trait WeakKey : WeakElement {
     /// strong pointer.
     fn with_key<F, R>(view: &Self::Strong, f: F) -> R
         where F: FnOnce(&Self::Key) -> R;
-
-    /// Hashes the key `view` into the given `Hasher`.
-    fn hash<H: Hasher>(view: &Self::Strong, h: &mut H) {
-        Self::with_key(view, |k| k.hash(h));
-    }
-
-    /// Returns whether the key `view` equals the given `key`.
-    fn equals<Q>(view: &Self::Strong, key: &Q) -> bool
-        where Q: ?Sized + Eq,
-              Self::Key: Borrow<Q>
-    {
-        Self::with_key(view, |k| k.borrow() == key)
-    }
 }
 
 impl<T: ?Sized> WeakElement for rc::Weak<T> {
@@ -106,7 +94,7 @@ impl<T: ?Sized + Eq + Hash> WeakKey for rc::Weak<T> {
     fn with_key<F, R>(view: &Self::Strong, f: F) -> R
         where F: FnOnce(&Self::Key) -> R
     {
-        f(view)
+        f(&view)
     }
 }
 
@@ -133,7 +121,7 @@ impl<T: ?Sized + Eq + Hash> WeakKey for sync::Weak<T>
     fn with_key<F, R>(view: &Self::Strong, f: F) -> R
         where F: FnOnce(&Self::Key) -> R
     {
-        f(view)
+        f(&view)
     }
 }
 
